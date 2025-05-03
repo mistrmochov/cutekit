@@ -5,6 +5,8 @@
 **Cutekit** is a sleek and modern Polkit authentication agent written in GTK, designed to work with any desktop environment.
 It is a **friendly fork** of [Soteria](https://github.com/imvaskel/soteria), extended with:
 
+</div>
+
 - **Custom GNOME-style interface** for a polished, integrated feel
 - **Theme-aware design** + optional user-defined CSS
 - **Dimmed** screen, when widnow is launched
@@ -12,14 +14,14 @@ It is a **friendly fork** of [Soteria](https://github.com/imvaskel/soteria), ext
 - **Layer shell integration** for easier integration
 - Improved UX and layout
 
+<div align="center">
 <img alt="Example authentication popup" src=".github/cutekit.png" width=50% height=50% ></image>
+</div>
 
 [Installation](#installation) •
 [Why?](#why) •
 [Configuration](#configuration) •
 [Usage](#usage)
-
-</div>
 
 ## Installation
 

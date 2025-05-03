@@ -40,7 +40,7 @@ fn remove_tilde_start(out: &str) -> String {
     out.trim_start_matches('~').to_string()
 }
 
-fn multile_displays(win: ApplicationWindow, password_entry: PasswordEntry) {
+fn multile_displays(win: ApplicationWindow, password_entry: PasswordEntry, layer: String) {
     glib::timeout_add_local_once(std::time::Duration::from_millis(30), move || {
         let display = gtk::gdk::Display::default().unwrap();
         let monitor_list = display.monitors();
@@ -52,7 +52,11 @@ fn multile_displays(win: ApplicationWindow, password_entry: PasswordEntry) {
             let dimmer = gtk::Window::builder().build();
 
             dimmer.init_layer_shell();
-            dimmer.set_layer(Layer::Overlay);
+            if layer == "top" {
+                dimmer.set_layer(Layer::Top);
+            } else {
+                dimmer.set_layer(Layer::Overlay);
+            }
             dimmer.set_exclusive_zone(-1);
             dimmer.set_keyboard_mode(KeyboardMode::None);
             dimmer.set_anchor(Edge::Top, true);
@@ -173,10 +177,10 @@ async fn main() -> Result<()> {
     let layer = get_conf_data(conf.clone(), "layer");
 
     window.init_layer_shell();
-    if layer == "overlay" {
-        window.set_layer(Layer::Overlay);
-    } else if layer == "top" {
+    if layer == "top" {
         window.set_layer(Layer::Top);
+    } else {
+        window.set_layer(Layer::Overlay);
     }
     window.set_exclusive_zone(-1);
     window.set_keyboard_mode(KeyboardMode::Exclusive);
@@ -300,7 +304,7 @@ async fn main() -> Result<()> {
                         info_label.set_label(&message);
 
                         tracing::debug!("Attempting to prompt user for authentication.");
-                        multile_displays(window.clone(), password_entry.clone());
+                        multile_displays(window.clone(), password_entry.clone(), layer.clone());
                     }
                     AuthenticationEvent::Canceled { cookie: c } => {
                         state.end_authentication(&c);
