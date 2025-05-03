@@ -68,13 +68,13 @@ exec-once = /path/to/cutekit
 
 You may also like:
 
-Other desktop environments should be similiar.
+Other desktop environments should be similar.
 
-The default layer in layer-shell for this app is at Overlay, however you can change that in ~/.config/cutekit/config.json to top layer if needed. You might want that, if you're using on screen keyboard, which is usually at the Top layer.
+By default, Cutekit uses the "overlay" layer in layer-shell. If you’re using an on-screen keyboard (which typically appears on the "top" layer), you can change the layer in `~/.config/cutekit/config.json` to `"top"`.
 
 The ~/.config/cutekit/config.json is automatically generated if missing, you can set your logo here, the width of the border aroung logo and color of that border.
 
-You can create your own style.css at ~/.config/cutekit/ if you want to play with the styling! You can inspect the cutekit.ui file in source code to track down css classes.
+You can also create your own `style.css` in `~/.config/cutekit/` to customize the appearance. You can inspect the cutekit.ui file in source code to track down css classes.
 
 ## Why?
 
