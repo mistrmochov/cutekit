@@ -11,7 +11,7 @@ It is a **friendly fork** of [Soteria](https://github.com/imvaskel/soteria), ext
 - **Theme-aware design** + optional user-defined CSS
 - **Dimmed** screen, when widnow is launched
 - **Built-in configuration** via JSON and toml
-- **Layer shell integration** for easier integration
+- **Layer shell integration** for easier interaction
 - Improved UX and layout
 
 <div align="center">
@@ -70,7 +70,7 @@ You may also like:
 
 Other desktop environments should be similiar.
 
-The default layer in layer-shell for this app is at Overlay, however you can change that in ~/.config/cutekit/config.json to top overlay if needed. You might want that, if you're using on screen keyboard, which is usually at the Top layer.
+The default layer in layer-shell for this app is at Overlay, however you can change that in ~/.config/cutekit/config.json to top layer if needed. You might want that, if you're using on screen keyboard, which is usually at the Top layer.
 
 The ~/.config/cutekit/config.json is automatically generated if missing, you can set your logo here, the width of the border aroung logo and color of that border.
 
