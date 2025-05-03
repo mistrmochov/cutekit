@@ -4,14 +4,21 @@ use eyre::{ensure, OptionExt, Result, WrapErr};
 use gtk::glib::{self, clone, spawn_future_local};
 use state::State;
 use std::collections::HashMap;
-use std::path::Path;
+use std::fs::{self, File};
+use std::path::{Path, PathBuf};
+use tokio::fs::read_to_string;
 use tokio::sync::broadcast::channel;
 use tracing::level_filters::LevelFilter;
+use ui::{create_circular_image, get_conf_data};
 use zbus::zvariant::Value;
 
 use gtk::{gio::Cancellable, prelude::*, Builder};
-use gtk::{Application, ApplicationWindow, Button, DropDown, Label, PasswordEntry, StringList};
+use gtk::{
+    Application, ApplicationWindow, Box, Button, DropDown, Label, ListItem, PasswordEntry,
+    SignalListItemFactory, StringList,
+};
 use gtk4 as gtk;
+use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use zbus::conn;
 
 use crate::config::SystemConfig;
@@ -24,6 +31,51 @@ mod dbus;
 mod events;
 mod state;
 mod ui;
+
+fn remove_slash_start(out: &str) -> String {
+    out.trim_start_matches('/').to_string()
+}
+
+fn remove_tilde_start(out: &str) -> String {
+    out.trim_start_matches('~').to_string()
+}
+
+fn multile_displays(win: ApplicationWindow, password_entry: PasswordEntry) {
+    glib::timeout_add_local_once(std::time::Duration::from_millis(30), move || {
+        let display = gtk::gdk::Display::default().unwrap();
+        let monitor_list = display.monitors();
+        let count = monitor_list.n_items();
+        for i in 0..count {
+            let item = monitor_list.item(i).unwrap();
+            let monitor = item.downcast::<gtk::gdk::Monitor>().unwrap();
+
+            let dimmer = gtk::Window::builder().build();
+
+            dimmer.init_layer_shell();
+            dimmer.set_layer(Layer::Overlay);
+            dimmer.set_exclusive_zone(-1);
+            dimmer.set_keyboard_mode(KeyboardMode::None);
+            dimmer.set_anchor(Edge::Top, true);
+            dimmer.set_anchor(Edge::Left, true);
+            dimmer.set_anchor(Edge::Right, true);
+            dimmer.set_anchor(Edge::Bottom, true);
+            dimmer.add_css_class("dimmer");
+
+            dimmer.set_monitor(Some(&monitor));
+
+            dimmer.present();
+
+            if i == (count - 1) {
+                win.present();
+                password_entry.grab_focus();
+            }
+
+            win.connect_hide(move |_| {
+                dimmer.destroy();
+            });
+        }
+    });
+}
 
 fn setup_tracing() -> Result<()> {
     let subscriber = tracing_subscriber::fmt()
@@ -59,7 +111,7 @@ async fn main() -> Result<()> {
     gtk::init()?;
 
     let application = Application::builder()
-        .application_id("gay.vaskel.Soteria")
+        .application_id("com.matysek.Cutekit")
         .build();
 
     let builder = Builder::from_string(constants::UI_XML);
@@ -70,23 +122,96 @@ async fn main() -> Result<()> {
     let confirm_button: Button = ui::get_object(&builder, "confirm-button")?;
     let info_label: Label = ui::get_object(&builder, "label-message")?;
     let dropdown: DropDown = ui::get_object(&builder, "identity-dropdown")?;
+    let logo_box: Box = ui::get_object(&builder, "logo-box")?;
 
-    password_entry.grab_focus();
+    let factory = SignalListItemFactory::new();
+
+    // Create and center label
+    factory.connect_setup(|_, item| {
+        let item = item.downcast_ref::<ListItem>().unwrap();
+        let label = Label::new(None);
+        label.set_margin_end(4);
+        label.set_halign(gtk::Align::Center);
+        label.set_valign(gtk::Align::Center);
+        label.add_css_class("dropdown");
+        item.set_child(Some(&label));
+    });
+
+    // Bind string to label
+    factory.connect_bind(|_, obj| {
+        let item = obj.downcast_ref::<ListItem>().unwrap();
+
+        let label = item
+            .child()
+            .and_then(|child| child.downcast::<Label>().ok());
+
+        let string_object = item
+            .item()
+            .and_then(|obj| obj.downcast::<glib::Object>().ok())
+            .map(|obj| obj.property::<glib::GString>("string"));
+
+        if let (Some(label), Some(text)) = (label, string_object) {
+            label.set_label(text.as_str());
+        }
+    });
+
+    dropdown.set_factory(Some(&factory));
 
     let config_path = std::env::var("XDG_CONFIG_HOME")
         .or(std::env::var("HOME").map(|e| e + "/.config"))
         .context("Could not resolve configuration path")?;
-    let css_path = format!("{}/soteria/style.css", config_path);
-    let path = Path::new(&css_path);
-    if path.is_file() {
-        tracing::info!("loading css stylesheet from {}", css_path);
-
-        let provider = gtk::CssProvider::new();
-        provider.load_from_path(path);
-        let display =
-            gtk::gdk::Display::default().ok_or_eyre("Could not get default gtk display.")?;
-        gtk::style_context_add_provider_for_display(&display, &provider, 1000);
+    let config_file = format!("{}/cutekit/config.json", config_path);
+    if !PathBuf::from(config_file.clone()).exists() {
+        File::create(PathBuf::from(config_file.clone()))?;
+        fs::write(PathBuf::from(config_file.clone()), constants::DEFAULT_JSON)?;
     }
+
+    let conf = fs::read_to_string(config_file)
+        .as_ref()
+        .unwrap()
+        .to_string();
+    let layer = get_conf_data(conf.clone(), "layer");
+
+    window.init_layer_shell();
+    if layer == "overlay" {
+        window.set_layer(Layer::Overlay);
+    } else if layer == "top" {
+        window.set_layer(Layer::Top);
+    }
+    window.set_exclusive_zone(-1);
+    window.set_keyboard_mode(KeyboardMode::Exclusive);
+
+    password_entry.grab_focus();
+
+    let home = PathBuf::from(std::env::var("HOME").as_ref().unwrap());
+    let mut logo_path_string = get_conf_data(conf, "logo");
+    let logo_path;
+    if logo_path_string.starts_with('~') {
+        logo_path_string = remove_tilde_start(&logo_path_string);
+        if logo_path_string.starts_with('/') {
+            logo_path_string = remove_slash_start(&logo_path_string);
+        }
+        logo_path = home.join(logo_path_string);
+    } else {
+        logo_path = PathBuf::from(logo_path_string);
+    }
+    if logo_path.exists() && logo_path.is_file() {
+        let logo = create_circular_image(&logo_path.to_string_lossy(), 60);
+        logo_box.append(&logo);
+    }
+
+    let mut css = constants::STATIC_CSS.to_string();
+    let css_path = format!("{}/cutekit/style.css", config_path);
+    let path = Path::new(&css_path);
+    if path.exists() && path.is_file() {
+        tracing::info!("loading css stylesheet from {}", css_path);
+        let new_css = read_to_string(path).await.as_ref().unwrap().to_string();
+        css = format!("{}\n{}", css, new_css);
+    }
+    let provider = gtk::CssProvider::new();
+    provider.load_from_string(&css);
+    let display = gtk::gdk::Display::default().ok_or_eyre("Could not get default gtk display.")?;
+    gtk::style_context_add_provider_for_display(&display, &provider, 1000);
 
     application.connect_activate(clone!(
         #[weak]
@@ -152,7 +277,6 @@ async fn main() -> Result<()> {
                 window.clone(),
                 dropdown.clone(),
             );
-
             loop {
                 let failed_alert = ui::build_fail_alert();
 
@@ -176,9 +300,12 @@ async fn main() -> Result<()> {
                         info_label.set_label(&message);
 
                         tracing::debug!("Attempting to prompt user for authentication.");
-                        window.present();
+                        multile_displays(window.clone(), password_entry.clone());
                     }
                     AuthenticationEvent::Canceled { cookie: c } => {
+                        state.end_authentication(&c);
+                    }
+                    AuthenticationEvent::UserCanceled { cookie: c } => {
                         state.end_authentication(&c);
                     }
                     AuthenticationEvent::UserProvidedPassword {
@@ -192,7 +319,6 @@ async fn main() -> Result<()> {
                         state.end_authentication(&c);
                         failed_alert.show(Some(&window));
                     }
-                    _ => (),
                 }
             }
         }

@@ -1,0 +1,43 @@
+.dimmer {
+    background: rgba(0, 0, 0, 0.591);
+}
+
+.main-win {
+    background: @window_bg_color;
+    border-radius: 15px;
+}
+
+.the-box {
+    min-width: 10px;
+}
+
+.title {
+    font-size: x-large;
+    font-weight: bold;
+}
+
+.label-message {
+    min-width: 1px;
+}
+
+.dropdown {
+    font-size: large;
+    font-weight: 700;
+}
+
+.button {
+    padding-bottom: 9px;
+    padding-top: 9px;
+}
+
+.button label {
+    opacity: 0.7;
+}
+
+.button:hover label {
+    opacity: 1;
+}
+
+.button:active label {
+    opacity: 1;
+}
