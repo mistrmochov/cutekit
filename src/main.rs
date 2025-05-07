@@ -1,10 +1,10 @@
 use authority::{AuthorityProxy, Subject};
+use config::files_init;
 use dbus::AuthenticationAgent;
 use eyre::{ensure, OptionExt, Result, WrapErr};
 use gtk::glib::{self, clone, spawn_future_local};
 use state::State;
 use std::collections::HashMap;
-use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use tokio::fs::read_to_string;
 use tokio::sync::broadcast::channel;
@@ -21,7 +21,7 @@ use gtk4 as gtk;
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use zbus::conn;
 
-use crate::config::SystemConfig;
+use crate::config::{ConfFile, SystemConfig};
 use crate::events::AuthenticationEvent;
 
 mod authority;
@@ -165,16 +165,10 @@ async fn main() -> Result<()> {
         .or(std::env::var("HOME").map(|e| e + "/.config"))
         .context("Could not resolve configuration path")?;
     let config_file = format!("{}/cutekit/config.json", config_path);
-    if !PathBuf::from(config_file.clone()).exists() {
-        File::create(PathBuf::from(config_file.clone()))?;
-        fs::write(PathBuf::from(config_file.clone()), constants::DEFAULT_JSON)?;
-    }
+    files_init()?;
 
-    let conf = fs::read_to_string(config_file)
-        .as_ref()
-        .unwrap()
-        .to_string();
-    let layer = get_conf_data(conf.clone(), "layer");
+    let conf = ConfFile::new(PathBuf::from(config_file))?;
+    let layer = get_conf_data(conf.read(), "layer");
 
     window.init_layer_shell();
     if layer == "top" {
@@ -188,7 +182,7 @@ async fn main() -> Result<()> {
     password_entry.grab_focus();
 
     let home = PathBuf::from(std::env::var("HOME").as_ref().unwrap());
-    let mut logo_path_string = get_conf_data(conf, "logo");
+    let mut logo_path_string = get_conf_data(conf.read(), "logo");
     let logo_path;
     if logo_path_string.starts_with('~') {
         logo_path_string = remove_tilde_start(&logo_path_string);

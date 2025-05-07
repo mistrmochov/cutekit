@@ -1,11 +1,30 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use crate::constants::DEFAULT_JSON;
+use dirs::home_dir;
 use eyre::Result;
 use figment::{
     providers::{Format, Serialized, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};
+use std::fs::{self, File};
+use std::io;
+
+pub struct ConfFile {
+    contents: String,
+}
+
+impl ConfFile {
+    pub fn new(path: PathBuf) -> std::io::Result<Self> {
+        let contents = fs::read_to_string(&path)?;
+        Ok(Self { contents })
+    }
+
+    pub fn read(&self) -> String {
+        self.contents.to_string()
+    }
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SystemConfig {
@@ -42,4 +61,26 @@ impl Default for SystemConfig {
             helper_path: env!("POLKIT_AGENT_HELPER_PATH").into(),
         }
     }
+}
+
+pub fn files_init() -> io::Result<()> {
+    if let Some(home) = home_dir() {
+        let cutekit = home.join(".config/cutekit");
+        let conf = cutekit.join("config.json");
+        if !cutekit.exists() || !cutekit.is_dir() {
+            println!("Creating {} directory.", cutekit.to_string_lossy());
+            if !PathBuf::from(".config").exists() {
+                fs::create_dir_all(cutekit)?;
+            } else {
+                fs::create_dir(cutekit)?;
+            }
+        }
+
+        if !conf.exists() || !conf.is_file() {
+            println!("Creating {}", conf.to_string_lossy());
+            File::create(conf.clone())?;
+            fs::write(conf, DEFAULT_JSON)?;
+        }
+    }
+    Ok(())
 }
