@@ -7,6 +7,7 @@
       "163",
       "200"
     ],
-    "layer": "overlay"
+    "layer": "overlay",
+    "input": "exclusive"
   }
 ]

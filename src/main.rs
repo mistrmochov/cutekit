@@ -169,6 +169,7 @@ async fn main() -> Result<()> {
 
     let conf = ConfFile::new(PathBuf::from(config_file))?;
     let layer = get_conf_data(conf.read(), "layer");
+    let input_mode = get_conf_data(conf.read(), "input");
 
     window.init_layer_shell();
     if layer == "top" {
@@ -177,7 +178,12 @@ async fn main() -> Result<()> {
         window.set_layer(Layer::Overlay);
     }
     window.set_exclusive_zone(-1);
-    window.set_keyboard_mode(KeyboardMode::Exclusive);
+
+    if input_mode == "on-demand" {
+        window.set_keyboard_mode(KeyboardMode::OnDemand);
+    } else {
+        window.set_keyboard_mode(KeyboardMode::Exclusive);
+    }
 
     password_entry.grab_focus();
 
